@@ -1,0 +1,94 @@
+.editor {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  border-radius: 2rem;
+  background: #fffefd;
+  color: #494454;
+}
+
+h1 {
+  font-size: 2rem;
+}
+
+fieldset {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+input, select, textarea {
+  min-width: 0;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 1px solid #d4ccda;
+  border-radius: 1rem;
+  background: #f8f5f9;
+  color: inherit;
+  font: inherit;
+  font-weight: 400;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+legend {
+  font-size: 1.15rem;
+}
+
+small, .hint {
+  color: #6c6273;
+}
+
+button {
+  padding: 0.6rem 1rem;
+  border: 0;
+  border-radius: 2rem;
+  background: #eee7f3;
+  color: #51445e;
+}
+
+.save {
+  margin-top: 1.5rem;
+  background: #675478;
+  color: white;
+}
+
+.save:disabled {
+  opacity: 0.55;
+}
+
+.author {
+  margin-bottom: 1rem;
+}
+
+.confirmation {
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #f0ecf5;
+}
+
+a {
+  color: #5b416f;
+}
+
+.error {
+  color: #942f46;
+}
+
+@media (max-width: 480px) {
+  .pair {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}

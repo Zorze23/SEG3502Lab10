@@ -1,119 +1,94 @@
-import {Component, inject, OnInit} from '@angular/core';
-import { AbstractControl, FormArray, FormBuilder, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import {Author, Book} from '../books/model/book';
-import {BooksService} from '../books/service/books.service';
-import { NgStyle, NgFor } from '@angular/common';
+import { Component, inject } from '@angular/core';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 
-function categoryValidator(control: FormControl<string>): { [s: string]: boolean } | null {
-  const validCategories = ['Kids', 'Tech', 'Cook'];
-  if (!validCategories.includes(control.value)) {
-    return {invalidCategory: true};
-  }
-  return null;
-}
+import { Author, Book } from '../books/model/book';
+import { BooksService } from '../books/service/books.service';
 
 @Component({
-    selector: 'app-admin',
-    templateUrl: './admin.component.html',
-    styleUrls: ['./admin.component.css'],
-    standalone: true,
-    imports: [NgStyle, FormsModule, ReactiveFormsModule, NgFor]
+  selector: 'app-admin',
+  standalone: true,
+  imports: [ReactiveFormsModule, RouterLink],
+  templateUrl: './admin.component.html',
+  styleUrls: ['./admin.component.css']
 })
-export class AdminComponent implements OnInit {
-  private builder: FormBuilder = inject(FormBuilder);
-  private booksService: BooksService = inject(BooksService);
-  message: string = '';
-  hideMsg = true;
-  msgStyle = {
-    color: '',
-    'background-color': 'white',
-    'font-size': '150%',
-  };
-  bookForm = this.builder.group({
-    category: ['', [Validators.required, categoryValidator]],
+export class AdminComponent {
+  private builder = inject(FormBuilder).nonNullable;
+  private service = inject(BooksService);
+
+  saving = false;
+  savedId: number | null = null;
+  error = '';
+
+  private authorFields() {
+    return this.builder.group({
+      firstName: ['', Validators.required],
+      lastName: ['', Validators.required]
+    });
+  }
+
+  readonly authors = this.builder.array<ReturnType<typeof this.authorFields>>([]);
+
+  readonly bookForm = this.builder.group({
     title: ['', Validators.required],
-    cost: ['', [Validators.required, Validators.pattern('\\d+(\\.\\d{1,2})?')]],
-    authors: this.builder.array([]),
+    category: ['', Validators.required],
+    cost: ['', [Validators.required, Validators.pattern(/^\d+(\.\d{1,2})?$/)]],
     year: ['', Validators.required],
-    description: ['', Validators.required]
+    description: ['', Validators.required],
+    authors: this.authors
   });
 
-  get category(): AbstractControl {
-    return <AbstractControl>this.bookForm.get('category');
-  }
-
-  get title(): AbstractControl {
-    return <AbstractControl>this.bookForm.get('title');
-  }
-
-  get cost(): AbstractControl {
-    return <AbstractControl>this.bookForm.get('cost');
-  }
-
-  get authors(): FormArray {
-    return this.bookForm.get('authors') as FormArray;
-  }
-
-  ngOnInit(): void {
-  }
-
-  showMessage(type: string, msg: string): void {
-    this.msgStyle.color = type === 'error' ? 'red' : 'blue';
-    this.message = msg;
-    this.hideMsg = false;
-    setTimeout(
-      () => {
-        this.hideMsg = true;
-      }, 3000
-    );
-  }
-
-  onSubmit(): void {
-    const book = new Book(0,
-      <string>this.bookForm.value.category,
-      <string>this.bookForm.value.title,
-      Number(this.bookForm.value.cost),
-      [],
-      Number(this.bookForm.value.year),
-      <string>this.bookForm.value.description);
-    const authors = <Author[]>this.bookForm.value.authors;
-    this.booksService.addBook(book).subscribe({
-      next: (response) => {
-        authors.forEach(
-          (author: Author) => {
-            this.booksService.getAuthorsNamed(author.firstName, author.lastName).subscribe({
-                next: (authorList: Author[]) => {
-                  if (authorList === undefined || authorList.length === 0) {
-                    this.booksService.addBookAuthor(response.id, author).subscribe();
-                  } else {
-                    // *** Assumes unique firstName/LastName for Authors
-                    this.booksService.updateBookAuthors(response.id, authorList[0].id).subscribe();
-                  }
-                }
-              }
-            );
-          }
-        );
-        this.showMessage('info', `The was successfully added with id ${response.id}`);
-      },
-      error: (_: any) => {
-        this.showMessage('error', 'Unable to add the book');
-      }
-    });
-    this.bookForm.reset();
-    this.authors.clear();
-  }
-
   addAuthor(): void {
-    this.authors.push(
-      this.builder.group({
-        firstName: [''],
-        lastName: ['']
-      })
-    );
+    this.authors.push(this.authorFields());
   }
 
-  removeAuthor(i: number): void {
-    this.authors.removeAt(i);
+  async onSubmit(): Promise<void> {
+    if (this.bookForm.invalid || this.saving) return;
+
+    this.saving = true;
+    this.savedId = null;
+    this.error = '';
+
+    const data = this.bookForm.getRawValue();
+    const book = new Book(
+      0,
+      data.category,
+      data.title,
+      Number(data.cost),
+      [],
+      Number(data.year),
+      data.description
+    );
+
+    try {
+      const saved = await firstValueFrom(this.service.addBook(book));
+      this.savedId = saved.id;
+
+      for (const author of data.authors) {
+        const matches = await firstValueFrom(
+          this.service.getAuthorsNamed(author.firstName, author.lastName)
+        );
+
+        if (matches?.length) {
+          await firstValueFrom(
+            this.service.updateBookAuthors(saved.id, matches[0].id)
+          );
+        } else {
+          const newAuthor = new Author(0, author.firstName, author.lastName);
+          await firstValueFrom(this.service.addBookAuthor(saved.id, newAuthor));
+        }
+      }
+    } catch {
+      this.error = this.savedId === null
+        ? 'Could not save the book. Please try again.'
+        : 'The book was saved, but some authors could not be linked.';
+    } finally {
+      if (this.savedId !== null) {
+        this.authors.clear();
+        this.bookForm.reset();
+      }
+      this.saving = false;
+    }
   }
 }

@@ -1,11 +1,15 @@
-<div>
-  <h2>Search our Book Collection</h2>
-  <div>
-    <label for="id">Book Id:</label>
-    <input type="text" #bookQuery id="id">
-    <button (click)="submit(bookQuery.value)">Search</button>
-  </div>
-  <div class="container">
-    <router-outlet></router-outlet>
-  </div>
-</div>
+<h2>Find a book</h2>
+
+<form (submit)="$event.preventDefault(); submit(bookQuery.value)">
+  <label for="book-id">Book ID</label>
+  <input
+    #bookQuery
+    id="book-id"
+    inputmode="numeric"
+    pattern="[0-9]+"
+    required
+  >
+  <button type="submit">Search</button>
+</form>
+
+<router-outlet></router-outlet>

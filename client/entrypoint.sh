@@ -1,7 +1,7 @@
 #!/bin/sh
+set -e
 
-# Replace placeholder in env.json with actual ENV vars
-envsubst < /usr/share/nginx/html/assets/env.template.json > /usr/share/nginx/html/assets/env.json
+assets=/usr/share/nginx/html/assets
+envsubst < "$assets/env.template.json" > "$assets/env.json"
 
-# Start Nginx
 exec nginx -g 'daemon off;'
